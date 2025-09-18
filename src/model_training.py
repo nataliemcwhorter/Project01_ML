@@ -114,6 +114,9 @@ class ModelTrainer:
         """Train multiple models and compare performance"""
         print("Training models...")
 
+        # Add training diagnostics
+        self._print_training_diagnostics(X, y)
+
         # Split data
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=MODEL_CONFIG['test_size'],
@@ -187,6 +190,70 @@ class ModelTrainer:
 
         self.models = results
         return results
+
+    def _print_training_diagnostics(self, X: np.ndarray, y: np.ndarray):
+        """Print comprehensive diagnostics on training data"""
+        print("\n=== MODEL TRAINING DIAGNOSTICS ===")
+
+        # Print input data characteristics
+        print(f"Input Features Shape: {X.shape}")
+        print(f"Target Values Shape: {y.shape}")
+        print(f"Target Value Range: {y.min():.3f} - {y.max():.3f}")
+        print(f"Target Mean: {np.mean(y):.3f}")
+        print(f"Target Median: {np.median(y):.3f}")
+
+        # Feature distribution
+        print("\n=== FEATURE DISTRIBUTION ===")
+        feature_means = np.mean(X, axis=0)
+        feature_stds = np.std(X, axis=0)
+
+        print(f"Feature means range: {feature_means.min():.3f} - {feature_means.max():.3f}")
+        print(f"Feature stds range: {feature_stds.min():.3f} - {feature_stds.max():.3f}")
+
+        # Check for potential issues
+        zero_std_features = np.sum(feature_stds == 0)
+        if zero_std_features > 0:
+            print(f"⚠️  Warning: {zero_std_features} features have zero standard deviation")
+
+        high_std_features = np.sum(feature_stds > 10)
+        if high_std_features > 0:
+            print(f"⚠️  Warning: {high_std_features} features have very high standard deviation (>10)")
+
+    def analyze_feature_importance(self):
+        """Analyze and print feature importance for the best model"""
+        print("\n=== FEATURE IMPORTANCE ANALYSIS ===")
+
+        if self.best_model is None:
+            print("No best model available for feature importance analysis")
+            return
+
+        if self.feature_columns is None:
+            print("No feature columns available for analysis")
+            return
+
+        try:
+            # For tree-based models (Random Forest, Gradient Boosting, XGBoost)
+            if hasattr(self.best_model, 'feature_importances_'):
+                importances = self.best_model.feature_importances_
+                indices = np.argsort(importances)[::-1]
+
+                print("Top 10 Most Important Features:")
+                for f in range(min(10, len(indices))):
+                    print(f"{self.feature_columns[indices[f]]}: {importances[indices[f]]:.4f}")
+
+            # For linear models (Linear Regression)
+            elif hasattr(self.best_model, 'coef_'):
+                coef_importance = np.abs(self.best_model.coef_)
+                indices = np.argsort(coef_importance)[::-1]
+
+                print("Top 10 Most Influential Features:")
+                for f in range(min(10, len(indices))):
+                    print(f"{self.feature_columns[indices[f]]}: {coef_importance[indices[f]]:.4f}")
+            else:
+                print("Current model does not support feature importance analysis")
+
+        except Exception as e:
+            print(f"Could not analyze feature importance: {e}")
 
     def _get_model_and_params(self, model_name: str) -> Tuple[Any, Dict]:
         """Get model instance and hyperparameter grid"""
@@ -336,3 +403,6 @@ class ModelTrainer:
         else:
             print(f"⚠️  Target R² of {MODEL_CONFIG['target_r2']} not yet achieved.")
             print("   Consider: more data, feature engineering, or different models.")
+
+        # Add feature importance analysis
+        self.analyze_feature_importance()

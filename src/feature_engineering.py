@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
 from config import FEATURE_CONFIG
 
 
@@ -10,37 +10,93 @@ class DriverPerformanceAnalyzer:
     def __init__(self, lap_data: pd.DataFrame, qualifying_data: pd.DataFrame):
         self.lap_data = lap_data
         self.qualifying_data = qualifying_data
+        self._precompute_statistics()
 
-    '''def get_driver_circuit_history(self, driver_id: str, circuit_id: str) -> Dict:
-        """Get driver's historical performance at specific circuit"""
-        circuit_data = self.qualifying_data[
-            (self.qualifying_data['driverId'] == driver_id) &
-            (self.qualifying_data['circuitId'] == circuit_id)
-            ]
+    def _precompute_statistics(self):
+        """Precompute various statistical metrics to speed up feature generation"""
+        # Circuit-level statistics
+        self.circuit_stats = self._compute_circuit_level_stats()
 
-        if len(circuit_data) < FEATURE_CONFIG['min_races_for_circuit_history']:
-            return {'has_circuit_history': False}
+        # Driver-level statistics
+        self.driver_stats = self._compute_driver_level_stats()
 
-        return {
-            'has_circuit_history': True,
-            'circuit_races_count': len(circuit_data),
-            'circuit_avg_position': circuit_data['position'].mean(),
-            'circuit_best_position': circuit_data['position'].min(),
-            'circuit_avg_q1_time': circuit_data['q1'].mean(),
-            'circuit_avg_q2_time': circuit_data['q2'].mean(),
-            'circuit_avg_q3_time': circuit_data['q3'].mean(),
-            'circuit_recent_form': circuit_data.tail(5)['position'].mean(),
-            'circuit_improvement_trend': self._calculate_trend(circuit_data['position'].values)
-        }'''
+        # Teammate comparison statistics
+        self.teammate_stats = self._compute_teammate_stats()
+
+    def _compute_circuit_level_stats(self) -> Dict:
+        """Compute circuit-level qualifying time statistics"""
+        circuit_stats = {}
+
+        for circuit_id in self.qualifying_data['circuitId'].unique():
+            circuit_data = self.qualifying_data[self.qualifying_data['circuitId'] == circuit_id]
+
+            circuit_stats[circuit_id] = {
+                'avg_q1_time': circuit_data['q1'].mean(),
+                'avg_q2_time': circuit_data['q2'].mean(),
+                'avg_q3_time': circuit_data['q3'].mean(),
+                'q1_std': circuit_data['q1'].std(),
+                'q2_std': circuit_data['q2'].std(),
+                'q3_std': circuit_data['q3'].std()
+            }
+
+        return circuit_stats
+
+    def _compute_driver_level_stats(self) -> Dict:
+        """Compute driver-level qualifying performance statistics"""
+        driver_stats = {}
+
+        for driver_id in self.qualifying_data['driverId'].unique():
+            driver_data = self.qualifying_data[self.qualifying_data['driverId'] == driver_id]
+
+            driver_stats[driver_id] = {
+                'avg_q1_time': driver_data['q1'].mean(),
+                'avg_q2_time': driver_data['q2'].mean(),
+                'avg_q3_time': driver_data['q3'].mean(),
+                'performance_variation': driver_data['q1'].std(),
+                'total_races': len(driver_data),
+                'avg_position': driver_data['position'].mean()
+            }
+
+        return driver_stats
+
+    def _compute_teammate_stats(self) -> Dict:
+        """Compute teammate comparison statistics"""
+        teammate_stats = {}
+
+        # Group by constructor to approximate teammates
+        for constructor_id in self.qualifying_data['constructorId'].unique():
+            constructor_data = self.qualifying_data[self.qualifying_data['constructorId'] == constructor_id]
+
+            # Get drivers in this constructor
+            constructor_drivers = constructor_data['driverId'].unique()
+
+            for driver_id in constructor_drivers:
+                driver_data = constructor_data[constructor_data['driverId'] == driver_id]
+                other_drivers_data = constructor_data[constructor_data['driverId'] != driver_id]
+
+                # Compute teammate gap and beat rate
+                if not other_drivers_data.empty:
+                    teammate_gap = abs(driver_data['q1'].mean() - other_drivers_data['q1'].mean())
+                    beat_rate = (driver_data['position'] < other_drivers_data['position'].mean()).mean()
+
+                    teammate_stats[driver_id] = {
+                        'teammate_gap': teammate_gap,
+                        'beat_teammate_rate': beat_rate
+                    }
+                else:
+                    teammate_stats[driver_id] = {
+                        'teammate_gap': 0.5,  # Default
+                        'beat_teammate_rate': 0.5  # Default
+                    }
+
+        return teammate_stats
 
     def get_driver_circuit_history(self, driver_id: str, circuit_id: str) -> Dict:
         """Get driver's historical performance at specific circuit"""
-
         circuit_data = self.qualifying_data[
             (self.qualifying_data['driverId'] == driver_id) &
             (self.qualifying_data['circuitId'] == circuit_id)
             ]
-
 
         if len(circuit_data) < FEATURE_CONFIG['min_races_for_circuit_history']:
             print(f"WARNING: Not enough races for driver {driver_id} at circuit {circuit_id}")
@@ -131,6 +187,49 @@ class DriverPerformanceAnalyzer:
             'beats_teammate': driver_position < teammate_position
         }
 
+    # New methods for feature estimation
+    def get_driver_circuit_q2_time(self, driver_id: str, circuit_id: str) -> Optional[float]:
+        """Get driver's historical Q2 time for a specific circuit"""
+        driver_circuit_data = self.qualifying_data[
+            (self.qualifying_data['driverId'] == driver_id) &
+            (self.qualifying_data['circuitId'] == circuit_id)
+            ]
+
+        return driver_circuit_data['q2'].mean() if not driver_circuit_data.empty else None
+
+    def get_driver_circuit_q3_time(self, driver_id: str, circuit_id: str) -> Optional[float]:
+        """Get driver's historical Q3 time for a specific circuit"""
+        driver_circuit_data = self.qualifying_data[
+            (self.qualifying_data['driverId'] == driver_id) &
+            (self.qualifying_data['circuitId'] == circuit_id)
+            ]
+
+        return driver_circuit_data['q3'].mean() if not driver_circuit_data.empty else None
+
+    def get_circuit_avg_q2_time(self, circuit_id: str) -> float:
+        """Get average Q2 time for a specific circuit"""
+        return self.circuit_stats.get(circuit_id, {}).get('avg_q2_time', 85.0)
+
+    def get_circuit_avg_q3_time(self, circuit_id: str) -> float:
+        """Get average Q3 time for a specific circuit"""
+        return self.circuit_stats.get(circuit_id, {}).get('avg_q3_time', 84.5)
+
+    def get_driver_teammate_gap(self, driver_id: str, circuit_id: str) -> Optional[float]:
+        """Estimate teammate performance gap"""
+        return self.teammate_stats.get(driver_id, {}).get('teammate_gap', 0.5)
+
+    def get_driver_performance_variation(self, driver_id: str) -> float:
+        """Get driver's overall performance variation"""
+        return self.driver_stats.get(driver_id, {}).get('performance_variation', 0.5)
+
+    def get_driver_teammate_beat_rate(self, driver_id: str, circuit_id: str) -> float:
+        """Get driver's rate of beating teammate at a specific circuit"""
+        return self.teammate_stats.get(driver_id, {}).get('beat_teammate_rate', 0.5)
+
+    def get_driver_general_teammate_beat_rate(self, driver_id: str) -> float:
+        """Get driver's overall rate of beating teammate"""
+        return self.teammate_stats.get(driver_id, {}).get('beat_teammate_rate', 0.5)
+
     def _calculate_trend(self, values: np.array) -> float:
         """Calculate trend in performance (negative = improving)"""
         if len(values) < 2:
@@ -148,7 +247,6 @@ def create_driver_features(driver_id: str, circuit_id: str, race_id: str,
                            analyzer: DriverPerformanceAnalyzer) -> Dict:
     """Create all driver-specific features for prediction"""
     features = {}
-
 
     # Circuit-specific history
     circuit_history = analyzer.get_driver_circuit_history(driver_id, circuit_id)
@@ -191,7 +289,6 @@ def create_driver_features(driver_id: str, circuit_id: str, race_id: str,
 
     # Field comparison
     field_comparison = analyzer.get_driver_vs_field_stats(driver_id, circuit_id)
-
 
     if not field_comparison:
         print(f"WARNING: No field comparison found for driver {driver_id}")
