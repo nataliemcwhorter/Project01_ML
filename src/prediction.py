@@ -1315,7 +1315,7 @@ class F1QualifyingPredictor:
             'Lando Norris', 'Oscar Piastri',
             'Fernando Alonso', 'Lance Stroll',
             'Esteban Ocon', 'Oliver Bearman',
-            'George Russel', 'Andrea Kimi Antonelli',
+            'George Russell', 'Andrea Kimi Antonelli',
             'Isack Hadjar', 'Liam Lawson',
             'Gabriel Bortoleto', 'Nico Hulkenberg',
             'Pierre Gasly', 'Franco Colapinto'
