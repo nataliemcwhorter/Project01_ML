@@ -16,12 +16,15 @@ class DriverPerformanceAnalyzer:
         """Precompute various statistical metrics to speed up feature generation"""
         # Circuit-level statistics
         self.circuit_stats = self._compute_circuit_level_stats()
+        #print("circuit level stats:", self.circuit_stats)
 
         # Driver-level statistics
         self.driver_stats = self._compute_driver_level_stats()
+        #print("driver level stats:", self.driver_stats)
 
         # Teammate comparison statistics
         self.teammate_stats = self._compute_teammate_stats()
+        #print("teammate level stats:", self.teammate_stats)
 
     def _compute_circuit_level_stats(self) -> Dict:
         """Compute circuit-level qualifying time statistics"""
@@ -242,7 +245,6 @@ class DriverPerformanceAnalyzer:
         driver_avg = driver_positions.mean()
         return (all_positions < driver_avg).mean() * 100
 
-
 def create_driver_features(driver_id: str, circuit_id: str, race_id: str,
                            analyzer: DriverPerformanceAnalyzer) -> Dict:
     """Create all driver-specific features for prediction"""
@@ -250,6 +252,7 @@ def create_driver_features(driver_id: str, circuit_id: str, race_id: str,
 
     # Circuit-specific history
     circuit_history = analyzer.get_driver_circuit_history(driver_id, circuit_id)
+    circuit_data = analyzer.qualifying_data[analyzer.qualifying_data['circuitId'] == circuit_id]
 
     if not circuit_history:
         print(f"WARNING: No circuit history found for driver {driver_id} at circuit {circuit_id}")
@@ -259,8 +262,9 @@ def create_driver_features(driver_id: str, circuit_id: str, race_id: str,
             'circuit_races_count': 0,
             'circuit_avg_position': 10,  # middle of the grid
             'circuit_best_position': 20,  # worst possible
-            'circuit_avg_q1_time': 90.0,  # average qualifying time
-            'circuit_recent_form': 0.5,  # neutral performance
+            #TODO: NATALIE EDIT THIS AND SEE WHAT IT DOES
+            'circuit_avg_q1_time': circuit_data['q1'].mean() + 0.5,  # average qualifying time
+            'circuit_recent_form': 0.25,  # neutral performance
             'circuit_improvement_trend': 0
         }
 
@@ -279,10 +283,10 @@ def create_driver_features(driver_id: str, circuit_id: str, race_id: str,
             'general_best_position': 20,
             'recent_form_position': 10,
             'recent_form_trend': 0,
-            'consistency_score': 0.5,
-            'q3_reach_rate': 0.5,
-            'top5_rate': 0.3,
-            'pole_rate': 0.1
+            'consistency_score': 0.4,
+            'q3_reach_rate': 0.2,
+            'top5_rate': 0.1,
+            'pole_rate': 0.02
         }
 
     features.update({f'general_{k}': v for k, v in general_history.items()})
@@ -296,6 +300,7 @@ def create_driver_features(driver_id: str, circuit_id: str, race_id: str,
         field_comparison = {
             'has_comparison_data': False,
             'position_vs_field': 0,
+            #TODO SEE HOW THESE AFFECT IT
             'percentile_rank': 0.5,
             'outperformance_rate': 0.5
         }

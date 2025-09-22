@@ -9,7 +9,7 @@ DATA_PATHS = {
     'qualifying_old': '../data/qualifying.csv',
     'results': '../data/results.csv',
     'races': '../data/races.csv',
-    'qualifying': '../data/qualifying_enhanced.csv'
+    'qualifying': '../data/qualifying_enhanced.csv',
 }
 
 # Model parameters

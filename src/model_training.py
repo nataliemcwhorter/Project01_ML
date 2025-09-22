@@ -110,18 +110,28 @@ class ModelTrainer:
 
         return X_scaled, y.values
 
+    # Add this method to your ModelTrainer class
+    def get_test_data(self):
+        """Return the test data used for evaluation"""
+        return self.X_test, self.y_test
+
+    # And modify your train_models method to store the test data:
     def train_models(self, X: np.ndarray, y: np.ndarray) -> Dict[str, Dict]:
         """Train multiple models and compare performance"""
         print("Training models...")
-
-        # Add training diagnostics
-        self._print_training_diagnostics(X, y)
 
         # Split data
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=MODEL_CONFIG['test_size'],
             random_state=MODEL_CONFIG['random_state']
         )
+
+        # Store test data for later use
+        self.X_test = X_test
+        self.y_test = y_test
+
+        # Add training diagnostics
+        self._print_training_diagnostics(X, y)
 
         results = {}
 

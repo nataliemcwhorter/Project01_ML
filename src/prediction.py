@@ -20,7 +20,7 @@ class F1QualifyingPredictor:
     def load_model(self, model_path: str = None) -> None:
         """Load trained model and preprocessing objects"""
         if model_path is None:
-            model_path = f"{OUTPUT_PATHS['models']}best_model.pkl"
+            model_path = f"{OUTPUT_PATHS['models']}gradient_boosting.pkl"
 
         try:
             self.model = joblib.load(model_path)
@@ -162,103 +162,6 @@ class F1QualifyingPredictor:
             'predicted_time_formatted': self._seconds_to_time_string(predicted_time),
             'weather_conditions': weather_conditions
         }
-
-    '''def _align_features(self, features_df: pd.DataFrame) -> np.ndarray:
-        """Align prediction features with training features"""
-        # Handle missing columns
-        for col in self.feature_columns:
-            if col not in features_df.columns:
-                if col.startswith(('circuit_', 'general_', 'field_', 'teammate_')):
-                    # Set default values for missing performance features
-                    if 'has_' in col:
-                        features_df[col] = False
-                    elif 'rate' in col or 'score' in col:
-                        features_df[col] = 0.5
-                    else:
-                        features_df[col] = 0
-                else:
-                    features_df[col] = 0
-
-        # Select only training features in correct order
-        features_aligned = features_df[self.feature_columns]
-
-        # Handle categorical encoding
-        for col in features_aligned.select_dtypes(include=['object']).columns:
-            if col in self.label_encoders:
-                try:
-                    # Convert to string first, then encode
-                    features_aligned.loc[:, bool_cols] = features_aligned.loc[:, bool_cols].astype(int)
-                except ValueError as e:
-                    # Handle unseen categories - assign a default encoded value
-                    print(f"Warning: Unseen category in {col}, using default value")
-                    features_aligned[col] = 0
-            else:
-                # If no encoder exists for this column, convert to numeric or drop
-                print(f"Warning: No encoder for column {col}, setting to 0")
-                features_aligned[col] = 0
-
-        # Convert boolean to int
-        bool_cols = features_aligned.select_dtypes(include=['bool']).columns
-        features_aligned[bool_cols] = features_aligned[bool_cols].astype(int)
-
-        # Fill any remaining NaN values
-        features_aligned = features_aligned.fillna(0)
-        features_scaled = self.scaler.transform(features_aligned)
-        return features_scaled'''
-
-    '''def _align_features(self, features_df: pd.DataFrame) -> np.ndarray:
-        """Align prediction features with training features"""
-
-        # This method is likely:
-        # 1. Not handling missing columns correctly
-        # 2. Filling all values with defaults
-        # 3. Not preserving driver-specific features
-
-        print("DEBUG: Features before alignment:")
-        print(features_df.head())
-        # Make a proper copy to avoid SettingWithCopyWarning
-        features_aligned = features_df.copy()
-
-        # Handle missing columns
-        for col in self.feature_columns:
-            if col not in features_aligned.columns:
-                if col.startswith(('circuit_', 'general_', 'field_', 'teammate_')):
-                    # Set default values for missing performance features
-                    if 'has_' in col:
-                        features_aligned[col] = False
-                    elif 'rate' in col or 'score' in col:
-                        features_aligned[col] = 0.5
-                    else:
-                        features_aligned[col] = 0
-                else:
-                    features_aligned[col] = 0
-
-        # Select only training features in correct order
-        features_aligned = features_aligned[self.feature_columns]
-
-        # Handle categorical encoding
-        for col in features_aligned.select_dtypes(include=['object']).columns:
-            if col in self.label_encoders:
-                try:
-                    features_aligned[col] = self.label_encoders[col].transform(features_aligned[col].astype(str))
-                except ValueError:
-                    # Handle unseen categories
-                    features_aligned[col] = 0
-
-        # Convert boolean to int - fixed version
-        bool_cols = features_aligned.select_dtypes(include=['bool']).columns
-        if len(bool_cols) > 0:
-            features_aligned[bool_cols] = features_aligned[bool_cols].astype(int)
-
-        # Fill any remaining NaN values
-        features_aligned = features_aligned.fillna(0)
-
-        # Scale features using the loaded scaler
-        features_scaled = self.scaler.transform(features_aligned)
-
-        print("DEBUG: Features after alignment:")
-        print(aligned_features.head())
-        return features_scaled'''
 
     def _align_features(self, features_df):
         """
@@ -1315,9 +1218,9 @@ class F1QualifyingPredictor:
             'Lando Norris', 'Oscar Piastri',
             'Fernando Alonso', 'Lance Stroll',
             'Esteban Ocon', 'Oliver Bearman',
-            'George Russel', 'Andrea Kimi Antonelli',
+            'George Russell', 'Andrea Kimi Antonelli',
             'Isack Hadjar', 'Liam Lawson',
-            'Gabriel Bortoleto', 'Nico Hulkenberg',
+            'Gabriel Bortoleto', 'Nico Hülkenberg',
             'Pierre Gasly', 'Franco Colapinto'
         ]
 
