@@ -1,6 +1,8 @@
 """
 F1 Qualifying Speed Prediction Model
 Main execution script with user interface
+Datasets from https://www.kaggle.com/datasets/jtrotman/formula-1-race-data
+help from flintAI
 """
 __author__ = 'Natalie McWhorter'
 __version__ = '09.25.2025'
