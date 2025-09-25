@@ -4,14 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="514fe47f-aca9-4b8f-8822-961eb54122f8" name="Changes" comment="why is this actually the good code">
-      <change afterPath="$PROJECT_DIR$/src/model_analysis.py" afterDir="false" />
+    <list default="true" id="514fe47f-aca9-4b8f-8822-961eb54122f8" name="Changes" comment="lets see what this does">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/config.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/config.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/feature_engineering.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/feature_engineering.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/model_training.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/model_training.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/prediction.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/prediction.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/results/monaco_predictions.csv" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -120,7 +115,8 @@
       <workItem from="1757522219300" duration="6379000" />
       <workItem from="1758114809967" duration="1000" />
       <workItem from="1758218746883" duration="11883000" />
-      <workItem from="1758559402342" duration="3321000" />
+      <workItem from="1758559402342" duration="3888000" />
+      <workItem from="1758816193587" duration="315000" />
     </task>
     <task id="LOCAL-00001" summary="initial commit (csv files + weather dataset creation file.">
       <option name="closed" value="true" />
@@ -154,7 +150,15 @@
       <option name="project" value="LOCAL" />
       <updated>1758247181973</updated>
     </task>
-    <option name="localTasksCounter" value="5" />
+    <task id="LOCAL-00005" summary="lets see what this does">
+      <option name="closed" value="true" />
+      <created>1758562969411</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1758562969411</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -176,12 +180,13 @@
     <MESSAGE value="more stuff" />
     <MESSAGE value="working on it chat" />
     <MESSAGE value="why is this actually the good code" />
-    <option name="LAST_COMMIT_MESSAGE" value="why is this actually the good code" />
+    <MESSAGE value="lets see what this does" />
+    <option name="LAST_COMMIT_MESSAGE" value="lets see what this does" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/Project01_ML$model_training.coverage" NAME="model_training Coverage Results" MODIFIED="1758245001643" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
     <SUITE FILE_PATH="coverage/Project01_ML$weather2_0.coverage" NAME="weather2.0 Coverage Results" MODIFIED="1756856662461" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/models" />
-    <SUITE FILE_PATH="coverage/Project01_ML$main.coverage" NAME="main Coverage Results" MODIFIED="1758562730260" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
+    <SUITE FILE_PATH="coverage/Project01_ML$main.coverage" NAME="main Coverage Results" MODIFIED="1758562781869" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
     <SUITE FILE_PATH="coverage/Project01_ML$model_prep.coverage" NAME="model_prep Coverage Results" MODIFIED="1756861203693" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
     <SUITE FILE_PATH="coverage/Project01_ML$advanced_feature_engineering.coverage" NAME="advanced_feature_engineering Coverage Results" MODIFIED="1756862159292" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
     <SUITE FILE_PATH="coverage/Project01_ML$hyperparameter_tuning.coverage" NAME="hyperparameter_tuning Coverage Results" MODIFIED="1757003901558" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
