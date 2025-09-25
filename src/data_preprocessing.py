@@ -1,8 +1,8 @@
 import pandas as pd
 import numpy as np
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
 from config import DATA_PATHS, FEATURE_CONFIG
-from feature_engineering import DriverPerformanceAnalyzer, create_driver_features
+from feature_engineering import create_driver_features, DriverPerformanceAnalyzer
 
 
 class DataPreprocessor:
@@ -30,14 +30,36 @@ class DataPreprocessor:
 
         # Clean qualifying data
         if not self.data['qualifying'].empty:
+            # Create a copy to avoid SettingWithCopyWarning
+            qualifying_df = self.data['qualifying'].copy()
+
             # Convert time strings to seconds
-            self.data['qualifying'] = self._convert_times_to_seconds(self.data['qualifying'])
+            qualifying_df = self._convert_times_to_seconds(qualifying_df)
 
-            # Remove invalid entries
-            self.data['qualifying'] = self.data['qualifying'].dropna(subset=['q1'])
+            print(f"Total rows before cleaning: {len(qualifying_df)}")
 
-            # No need for merging now, as columns are already present
+            # Drop rows where all Q1, Q2, Q3 are NaN
+            qualifying_df.dropna(subset=['q1', 'q2', 'q3'], how='all', inplace=True)
+
+            # Handle NaN times more safely
+            for col in ['q1', 'q2', 'q3']:
+                if col in qualifying_df.columns:
+                    # Calculate median, ignoring NaN values
+                    median_time = qualifying_df[col].median()
+
+                    # Fill NaN values with median
+                    qualifying_df[col] = qualifying_df[col].fillna(median_time)
+
+                    # Print diagnostic information
+                    print(f"{col} column:")
+                    print(f"  Median time: {median_time:.3f}")
+                    print(f"  Missing values after filling: {qualifying_df[col].isna().sum()}")
+
+            print(f"Total rows after cleaning: {len(qualifying_df)}")
             print("✓ Qualifying data cleaned successfully")
+
+            # Update the original data with the cleaned DataFrame
+            self.data['qualifying'] = qualifying_df
 
     def create_features(self) -> pd.DataFrame:
         """Create feature matrix for training"""
@@ -126,6 +148,116 @@ class DataPreprocessor:
 
         return features_df
 
+    def prepare_prediction_features(self, driver_id: str, circuit_id: str,
+                                    weather_conditions: Dict) -> Dict:
+        """Prepare features for a single prediction with comprehensive feature handling"""
+        if self.analyzer is None:
+            raise ValueError("Must call create_features() first to initialize analyzer")
+
+        # Create dummy race_id for current prediction
+        current_race_id = f"prediction_{circuit_id}_{driver_id}"
+
+        features = {
+            'driverId': driver_id,
+            'circuitId': circuit_id,
+            'raceId': current_race_id
+        }
+
+        # Add weather features
+        features.update(weather_conditions)
+
+        # Add driver performance features
+        driver_features = create_driver_features(
+            driver_id, circuit_id, current_race_id, self.analyzer
+        )
+        features.update(driver_features)
+
+        # Add circuit features
+        circuit_features = self._get_circuit_features(circuit_id)
+        features.update(circuit_features)
+
+        # Explicitly handle missing features with intelligent defaults
+        missing_features = {
+            'q2_time': self._estimate_q2_time(driver_id, circuit_id),
+            'q3_time': self._estimate_q3_time(driver_id, circuit_id),
+            'teammate_teammate_gap': self._estimate_teammate_gap(driver_id, circuit_id),
+            'teammate_beats_teammate': self._estimate_teammate_performance(driver_id, circuit_id)
+        }
+        features.update(missing_features)
+
+        return features
+
+    def _estimate_q2_time(self, driver_id: str, circuit_id: str) -> float:
+        """Estimate Q2 time based on historical data or circuit averages"""
+        try:
+            # First, try to find driver's historical Q2 time at this circuit
+            historical_q2 = self.analyzer.get_driver_circuit_q2_time(driver_id, circuit_id)
+            if historical_q2 is not None:
+                return historical_q2
+        except Exception:
+            pass
+
+        # Fallback to circuit average Q2 time
+        try:
+            circuit_avg_q2 = self.analyzer.get_circuit_avg_q2_time(circuit_id)
+            return circuit_avg_q2
+        except Exception:
+            # Ultimate fallback: global Q2 time average
+            return 85.0  # Typical Q2 time across circuits
+
+    def _estimate_q3_time(self, driver_id: str, circuit_id: str) -> float:
+        """Estimate Q3 time based on historical data or circuit averages"""
+        try:
+            # First, try to find driver's historical Q3 time at this circuit
+            historical_q3 = self.analyzer.get_driver_circuit_q3_time(driver_id, circuit_id)
+            if historical_q3 is not None:
+                return historical_q3
+        except Exception:
+            pass
+
+        # Fallback to circuit average Q3 time
+        try:
+            circuit_avg_q3 = self.analyzer.get_circuit_avg_q3_time(circuit_id)
+            return circuit_avg_q3
+        except Exception:
+            # Ultimate fallback: global Q3 time average
+            return 84.5  # Typical Q3 time across circuits
+
+    def _estimate_teammate_gap(self, driver_id: str, circuit_id: str) -> float:
+        """Estimate teammate gap based on historical performance"""
+        try:
+            # Try to find actual teammate gap
+            teammate_gap = self.analyzer.get_driver_teammate_gap(driver_id, circuit_id)
+            if teammate_gap is not None:
+                return teammate_gap
+        except Exception:
+            pass
+
+        # Fallback to driver's general performance variation
+        try:
+            performance_variation = self.analyzer.get_driver_performance_variation(driver_id)
+            return performance_variation
+        except Exception:
+            # Ultimate fallback: moderate performance variation
+            return 0.5  # Seconds
+
+    def _estimate_teammate_performance(self, driver_id: str, circuit_id: str) -> float:
+        """Estimate how often driver beats teammate"""
+        try:
+            # Try to find actual teammate beat rate
+            beat_rate = self.analyzer.get_driver_teammate_beat_rate(driver_id, circuit_id)
+            if beat_rate is not None:
+                return beat_rate
+        except Exception:
+            pass
+
+        # Fallback to driver's general teammate performance
+        try:
+            general_beat_rate = self.analyzer.get_driver_general_teammate_beat_rate(driver_id)
+            return general_beat_rate
+        except Exception:
+            # Ultimate fallback: 50% beat rate
+            return 0.5
 
     def _convert_times_to_seconds(self, df: pd.DataFrame) -> pd.DataFrame:
         """Convert qualifying time strings to seconds"""
@@ -138,24 +270,31 @@ class DataPreprocessor:
         return df
 
     def _time_string_to_seconds(self, time_str) -> float:
-        """Convert time string (e.g., '1:23.456') to seconds"""
-        if pd.isna(time_str) or time_str == '':
+        """Convert time string to total seconds with robust handling"""
+        # Handle various null/missing value representations
+        if (pd.isna(time_str) or
+                time_str is None or
+                time_str == '' or
+                time_str == '\\N' or
+                str(time_str).strip().lower() in ['nan', 'none']):
             return np.nan
 
         try:
+            # If it's already a numeric type, return as is
             if isinstance(time_str, (int, float)):
                 return float(time_str)
 
-            # Handle format like '1:23.456'
-            if ':' in str(time_str):
-                parts = str(time_str).split(':')
-                minutes = float(parts[0])
-                seconds = float(parts[1])
-                return minutes * 60 + seconds
-            else:
-                return float(time_str)
+            # Convert string time format like '1:26.572'
+            if isinstance(time_str, str) and ':' in time_str:
+                minutes, seconds = time_str.split(':')
+                total_seconds = float(minutes) * 60 + float(seconds)
+                return total_seconds
 
-        except (ValueError, AttributeError):
+            # Last resort: try converting to float
+            return float(time_str)
+
+        except (ValueError, TypeError):
+            print(f"Warning: Could not convert time {time_str}")
             return np.nan
 
     def _convert_lap_times(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -238,33 +377,3 @@ class DataPreprocessor:
             'circuit_type': circuit_row.get('type', 'unknown'),
             'altitude': circuit_row.get('alt', 0)
         }
-
-    def prepare_prediction_features(self, driver_id: str, circuit_id: str,
-                                    weather_conditions: Dict) -> Dict:
-        """Prepare features for a single prediction"""
-        if self.analyzer is None:
-            raise ValueError("Must call create_features() first to initialize analyzer")
-
-        # Create dummy race_id for current prediction
-        current_race_id = f"prediction_{circuit_id}_{driver_id}"
-
-        features = {
-            'driverId': driver_id,
-            'circuitId': circuit_id,
-            'raceId': current_race_id
-        }
-
-        # Add weather features
-        features.update(weather_conditions)
-
-        # Add driver performance features
-        driver_features = create_driver_features(
-            driver_id, circuit_id, current_race_id, self.analyzer
-        )
-        features.update(driver_features)
-
-        # Add circuit features
-        circuit_features = self._get_circuit_features(circuit_id)
-        features.update(circuit_features)
-
-        return features

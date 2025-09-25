@@ -1,24 +1,29 @@
-#!/usr/bin/env python3
 """
 F1 Qualifying Speed Prediction Model
 Main execution script with user interface
 """
+__author__ = 'Natalie McWhorter'
+__version__ = '09.25.2025'
 
+#imports!!!
 import os
 import sys
 from typing import Dict, List
 import pandas as pd
-
-# Import our custom modules
 from data_preprocessing import DataPreprocessor
 from model_training import ModelTrainer
 from prediction import F1QualifyingPredictor
 from config import MODEL_CONFIG, OUTPUT_PATHS
 from utils import create_directories, get_user_input, validate_weather_input
 predictor = F1QualifyingPredictor()
+from model_analysis import analyze_model_results
 
+
+'''train_model()
+uses the training algorithm from model_training.py to train a variety of models including:
+    linear regression, random forest, gradient boosting, xgboost, neural network, and ensemble
+'''
 def train_model():
-    """Train the F1 qualifying prediction model"""
     print("\n🏎️  F1 QUALIFYING SPEED PREDICTION MODEL - TRAINING MODE")
     print("=" * 60)
 
@@ -39,19 +44,30 @@ def train_model():
         print("❌ No features created. Please check your data files.")
         return False
 
-    # Initialize trainer
+    #train models
     trainer = ModelTrainer()
-
-    # Prepare data
     X, y = trainer.prepare_data(features_df)
-
-    # Train models
     results = trainer.train_models(X, y)
-
-    # Print results
     trainer.print_results_summary()
+    # Add this to the END of your existing training script
+    # (after trainer.print_results_summary())
 
-    # Save models
+    # Get the test data from your trainer
+    X_test, y_test = trainer.get_test_data()
+
+    # Run the complete analysis
+    print("\n" + "=" * 50)
+    print("STARTING VISUALIZATION ANALYSIS")
+    print("=" * 50)
+
+    analyzer = analyze_model_results(
+        models_path="../models/",
+        output_path="../results/model_analysis/",
+        X_test=X_test,
+        y_test=y_test
+    )
+
+    print("\n🎉 Analysis complete! Check the 'analysis_charts' folder for your PNG files.")
     trainer.save_models()
 
     # Check if target R² achieved
@@ -64,7 +80,6 @@ def train_model():
         print(f"Best model R²: {trainer.best_score:.4f}")
         print("Consider collecting more data or adjusting features.")
         return False
-
 
 def predict_qualifying():
     """Interactive prediction mode"""

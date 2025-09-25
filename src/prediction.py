@@ -20,7 +20,7 @@ class F1QualifyingPredictor:
     def load_model(self, model_path: str = None) -> None:
         """Load trained model and preprocessing objects"""
         if model_path is None:
-            model_path = f"{OUTPUT_PATHS['models']}best_model.pkl"
+            model_path = f"{OUTPUT_PATHS['models']}gradient_boosting.pkl"
 
         try:
             self.model = joblib.load(model_path)
@@ -114,6 +114,25 @@ class F1QualifyingPredictor:
         results_df['predicted_position'] = range(1, len(results_df) + 1)
 
         print(f"✓ Predictions completed for {len(results_df)} drivers")
+
+        print("\n=== PREDICTION FEATURE DEBUG ===")
+
+        for driver in drivers[:3]:  # Check first 3 drivers
+            driver_id = self._get_driver_id(driver)
+            features = self.preprocessor.prepare_prediction_features(
+                driver_id, circuit_id, weather_conditions
+            )
+
+            print(f"\nDriver: {driver}")
+            print(f"Raw features: {features}")
+
+            # Check if features are being scaled correctly
+            features_df = pd.DataFrame([features])
+            features_aligned = self._align_features(features_df)
+            print(f"Aligned features shape: {features_aligned.shape}")
+            print(f"Aligned features sample: {features_aligned[0][:5]}")  # First 5 values
+
+
         return results_df
 
     def predict_single_driver(self, driver_name: str, circuit_name: str,
@@ -144,92 +163,55 @@ class F1QualifyingPredictor:
             'weather_conditions': weather_conditions
         }
 
-    '''def _align_features(self, features_df: pd.DataFrame) -> np.ndarray:
-        """Align prediction features with training features"""
-        # Handle missing columns
+    def _align_features(self, features_df):
+        """
+        Robust feature alignment with intelligent type conversion
+        """
+        print("\n=== FEATURE ALIGNMENT DIAGNOSTICS ===")
+
+        # Verify training feature columns exist
+        if not hasattr(self, 'feature_columns'):
+            raise ValueError("No feature columns found. Train model first!")
+
+        # Create a copy of the input features to avoid modifying the original
+        aligned_df = features_df.copy()
+
+        # Handle categorical features
+        categorical_columns = ['circuit_type']
+        for col in categorical_columns:
+            if col in aligned_df.columns:
+                # Convert categorical features to numeric
+                if aligned_df[col].dtype == 'object':
+                    # Use label encoding for circuit type
+                    circuit_type_map = {
+                        'street': 0,
+                        'permanent': 1,
+                        'temporary': 2,
+                        'unknown': 3
+                    }
+                    aligned_df[col] = aligned_df[col].map(circuit_type_map).fillna(3)  # Default to 'unknown'
+
+        # Ensure all training feature columns are present
         for col in self.feature_columns:
-            if col not in features_df.columns:
-                if col.startswith(('circuit_', 'general_', 'field_', 'teammate_')):
-                    # Set default values for missing performance features
-                    if 'has_' in col:
-                        features_df[col] = False
-                    elif 'rate' in col or 'score' in col:
-                        features_df[col] = 0.5
-                    else:
-                        features_df[col] = 0
+            if col not in aligned_df.columns:
+                # Add missing columns with default values
+                if 'binary' in col or col.startswith('is_'):
+                    aligned_df[col] = 0
+                elif 'time' in col or 'position' in col or 'rate' in col or 'trend' in col:
+                    aligned_df[col] = 0.0
                 else:
-                    features_df[col] = 0
+                    aligned_df[col] = 0
 
-        # Select only training features in correct order
-        features_aligned = features_df[self.feature_columns]
+        # Select and order columns exactly as in training
+        aligned_df = aligned_df[self.feature_columns]
 
-        # Handle categorical encoding
-        for col in features_aligned.select_dtypes(include=['object']).columns:
-            if col in self.label_encoders:
-                try:
-                    # Convert to string first, then encode
-                    features_aligned.loc[:, bool_cols] = features_aligned.loc[:, bool_cols].astype(int)
-                except ValueError as e:
-                    # Handle unseen categories - assign a default encoded value
-                    print(f"Warning: Unseen category in {col}, using default value")
-                    features_aligned[col] = 0
-            else:
-                # If no encoder exists for this column, convert to numeric or drop
-                print(f"Warning: No encoder for column {col}, setting to 0")
-                features_aligned[col] = 0
+        # Scale features
+        scaled_features = self.scaler.transform(aligned_df)
 
-        # Convert boolean to int
-        bool_cols = features_aligned.select_dtypes(include=['bool']).columns
-        features_aligned[bool_cols] = features_aligned[bool_cols].astype(int)
+        print("Aligned Features Shape:", scaled_features.shape)
+        print("First 5 scaled feature values:", scaled_features[0][:5])
 
-        # Fill any remaining NaN values
-        features_aligned = features_aligned.fillna(0)
-        features_scaled = self.scaler.transform(features_aligned)
-        return features_scaled'''
-
-    def _align_features(self, features_df: pd.DataFrame) -> np.ndarray:
-        """Align prediction features with training features"""
-        # Make a proper copy to avoid SettingWithCopyWarning
-        features_aligned = features_df.copy()
-
-        # Handle missing columns
-        for col in self.feature_columns:
-            if col not in features_aligned.columns:
-                if col.startswith(('circuit_', 'general_', 'field_', 'teammate_')):
-                    # Set default values for missing performance features
-                    if 'has_' in col:
-                        features_aligned[col] = False
-                    elif 'rate' in col or 'score' in col:
-                        features_aligned[col] = 0.5
-                    else:
-                        features_aligned[col] = 0
-                else:
-                    features_aligned[col] = 0
-
-        # Select only training features in correct order
-        features_aligned = features_aligned[self.feature_columns]
-
-        # Handle categorical encoding
-        for col in features_aligned.select_dtypes(include=['object']).columns:
-            if col in self.label_encoders:
-                try:
-                    features_aligned[col] = self.label_encoders[col].transform(features_aligned[col].astype(str))
-                except ValueError:
-                    # Handle unseen categories
-                    features_aligned[col] = 0
-
-        # Convert boolean to int - fixed version
-        bool_cols = features_aligned.select_dtypes(include=['bool']).columns
-        if len(bool_cols) > 0:
-            features_aligned[bool_cols] = features_aligned[bool_cols].astype(int)
-
-        # Fill any remaining NaN values
-        features_aligned = features_aligned.fillna(0)
-
-        # Scale features using the loaded scaler
-        features_scaled = self.scaler.transform(features_aligned)
-
-        return features_scaled
+        return scaled_features
 
     def _get_circuit_id(self, circuit_name: str) -> str:
         """Convert circuit name to circuit ID"""
@@ -1236,9 +1218,9 @@ class F1QualifyingPredictor:
             'Lando Norris', 'Oscar Piastri',
             'Fernando Alonso', 'Lance Stroll',
             'Esteban Ocon', 'Oliver Bearman',
-            'George Russel', 'Andrea Kimi Antonelli',
+            'George Russell', 'Andrea Kimi Antonelli',
             'Isack Hadjar', 'Liam Lawson',
-            'Gabriel Bortoleto', 'Nico Hulkenberg',
+            'Gabriel Bortoleto', 'Nico Hülkenberg',
             'Pierre Gasly', 'Franco Colapinto'
         ]
 
